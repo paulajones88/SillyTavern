@@ -60,6 +60,7 @@ export {
     prepareOpenAIMessages,
     sendOpenAIRequest,
     setOpenAIOnlineStatus,
+    countTokens
 }
 
 let openai_msgs = [];

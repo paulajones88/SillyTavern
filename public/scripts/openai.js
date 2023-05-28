@@ -1010,6 +1010,12 @@ function loadOpenAISettings(data, settings) {
     oai_settings.windowai_model = settings.windowai_model ?? default_settings.windowai_model;
     oai_settings.chat_completion_source = settings.chat_completion_source ?? default_settings.chat_completion_source;
 
+    if (0 === settings.prompts.length) oai_settings.prompts = default_settings.prompts;
+    else oai_settings.prompts = settings.prompts
+
+    oai_settings.prompt_lists = settings.prompt_lists ?? [];
+    oai_settings.prompt_manager_settings = settings.prompt_manager_settings ?? [];
+
     if (settings.nsfw_toggle !== undefined) oai_settings.nsfw_toggle = !!settings.nsfw_toggle;
     if (settings.keep_example_dialogue !== undefined) oai_settings.keep_example_dialogue = !!settings.keep_example_dialogue;
     if (settings.enhance_definitions !== undefined) oai_settings.enhance_definitions = !!settings.enhance_definitions;

@@ -20,7 +20,8 @@ import {
     system_message_types,
     replaceBiasMarkup,
     is_send_press,
-    saveSettings
+    saveSettings,
+    Generate
 } from "../script.js";
 import {groups, selected_group} from "./group-chats.js";
 
@@ -61,7 +62,8 @@ export {
     prepareOpenAIMessages,
     sendOpenAIRequest,
     setOpenAIOnlineStatus,
-    countTokens
+    countTokens,
+    TokenHandler
 }
 
 let openai_msgs = [];
@@ -247,7 +249,7 @@ function setOpenAIMessageExamples(mesExamplesArray) {
     }
 }
 
-function setupOpenAIPromptManager(settings) {
+function setupOpenAIPromptManager(openAiSettings) {
     promptManager = new PromptManager();
     const configuration = {
         prefix: 'openai_',
@@ -260,7 +262,13 @@ function setupOpenAIPromptManager(settings) {
         return saveSettings();
     }
 
-    promptManager.init(configuration, settings);
+    promptManager.tryGenerate = () => {
+        return Generate('normal', {}, true);
+    }
+
+    promptManager.tokenHandler = tokenHandler;
+
+    promptManager.init(configuration, openAiSettings);
     promptManager.render();
 
 
@@ -396,16 +404,15 @@ async function prepareOpenAIMessages({ systemPrompt, name2, storyString, worldIn
     // Handle impersonation
     if (type === "impersonate") chatCompletion.replace('main', chatCompletion.makeSystemMessage(substituteParams(oai_settings.impersonation_prompt)));
 
-    promptManager.updatePrompts(chatCompletion.getPromptsWithTokenCount());
+    const tokenHandler = promptManager.getTokenHandler();
+    tokenHandler?.setCounts(
+        {...tokenHandler.getCounts(), ...chatCompletion.getTokenCounts()}
+    );
 
     // Save settings with updated token calculation and return context
     return promptManager.saveServiceSettings().then(() => {
-        promptManager.render();
-
         const openai_msgs_tosend = chatCompletion.getChat();
         openai_messages_count = openai_msgs_tosend.filter(x => x.role === "user" || x.role === "assistant").length;
-
-        console.log(openai_msgs_tosend);
 
         return [openai_msgs_tosend, false];
     });
@@ -780,6 +787,14 @@ class TokenHandler {
         };
     }
 
+    getCounts() {
+        return this.counts;
+    }
+
+    setCounts(counts) {
+        this.counts = counts;
+    }
+
     uncount(value, type) {
         this.counts[type] -= value;
     }
@@ -797,6 +812,8 @@ class TokenHandler {
         console.table({ ...this.counts, 'total': total });
     }
 }
+
+const tokenHandler = new TokenHandler(countTokens);
 
 function countTokens(messages, full = false) {
     let chatId = 'undefined';

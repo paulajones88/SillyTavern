@@ -406,11 +406,14 @@ async function prepareOpenAIMessages({ name2, charDescription, charPersonality, 
     if (bias && bias.trim().length) chatCompletion.add(biasMessage);
 
     // Handle chat examples
-    // ToDo: Update dialogueExamples prompt with only the token count that's actually sent.
-    const exampleMessages = prepareExampleMessages(openai_msgs ,openai_msgs_example, power_user.pin_examples);
-    if (exampleMessages.length) {
+    if (openai_msgs_example.length) {
+        const exampleMessagesFlattened = openai_msgs_example.reduce((messages, prompts) => {
+            messages.push(prompts[0]);
+            return messages;
+        }, []);
+
         chatCompletion.replace('newExampleChat', newChatMessage)
-        chatCompletion.replace('dialogueExamples', exampleMessages);
+        chatCompletion.replace('dialogueExamples', exampleMessagesFlattened);
     }
 
     // Handle quiet prompt
@@ -442,45 +445,6 @@ function getGroupMembers(activeGroup) {
     }
 
     return names;
-}
-
-function prepareExampleMessages(messages, exampleMessages, includeAll = false, ) {
-    // The user wants to always have all example messages in the context
-    let examples_tosend = [];
-    let total_count = 0;
-    const new_chat_msg = {role: 'system', content: '[Start new chat]'}
-
-    if (includeAll) {
-        // first we send *all* example messages
-        // we don't check their token size since if it's bigger than the context, the user is fucked anyway
-        // and should've have selected that option (maybe have some warning idk, too hard to add)
-        for (const element of exampleMessages) {
-            // get the current example block with multiple user/bot messages
-            let example_block = element;
-            for (const example of example_block) {
-                // add all the messages from the example
-                examples_tosend.push(example);
-            }
-        }
-    } else {
-        // each example block contains multiple user/bot messages
-        for (let example_block of exampleMessages) {
-            if (example_block.length == 0) {
-                continue;
-            }
-
-            // add the block only if there is enough space for all its messages
-            const example_count = countTokens(example_block)
-            if ((total_count + example_count) < (oai_settings.openai_max_context - oai_settings.openai_max_tokens)) {
-                examples_tosend.push(...example_block)
-            } else {
-                // early break since more examples probably won't fit anyway
-                break;
-            }
-        }
-    }
-
-    return examples_tosend;
 }
 
 function tryParseStreamingError(str) {
